@@ -5,7 +5,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { googleLogout, useGoogleLogin } from '@react-oauth/google'
 import {
   Dialog,
   DialogContent,
@@ -13,39 +12,45 @@ import {
   DialogHeader,
 } from "@/components/ui/dialog"
 import { FcGoogle } from "react-icons/fc"
-import axios from 'axios'
+import logo from '../../assets/logo.png'
 
-// ✅ Import your logo from assets
-import logo from '../../assets/logo.png' // Adjust the path as necessary
+// ✅ Firebase Auth imports
+import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth"
+import { auth } from "../../service/firebaseConfig" // Adjust this path if needed
 
 function Header() {
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')))
   const [openDialog, setOpenDialog] = useState(false)
 
-  const login = useGoogleLogin({
-    onSuccess: (res) => GetUserProfile(res),
-    onError: (error) => console.log(error)
-  })
+  // ✅ Use Firebase Auth Google provider
+  const provider = new GoogleAuthProvider()
 
-  const GetUserProfile = (tokenInfo) => {
-    axios.get(`https://www.googleapis.com/oauth2/v1/userinfo?access_token=${tokenInfo.access_token}`, {
-      headers: {
-        Authorization: `Bearer ${tokenInfo.access_token}`,
-        Accept: 'application/json',
-      },
-    }).then((resp) => {
-      localStorage.setItem('user', JSON.stringify(resp.data))
-      setUser(resp.data) // update state
-      setOpenDialog(false)
-    }).catch((error) => {
-      console.error("Error fetching user profile: ", error)
-    })
+  const login = () => {
+    signInWithPopup(auth, provider)
+      .then((result) => {
+        console.log(result.user)
+        localStorage.setItem('user', JSON.stringify(result.user))
+        setUser(result.user)
+        setOpenDialog(false)
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+  }
+
+  const handleLogout = () => {
+    signOut(auth)
+      .then(() => {
+        localStorage.clear()
+        window.location.reload()
+      })
+      .catch((error) => console.error(error))
   }
 
   return (
     <div className="shadow-sm flex justify-between items-center px-6 py-4">
       {/* ✅ Bigger header logo */}
-      <img src={logo} alt="Logo" className="h-14 w-auto" /> {/* h-14 instead of h-10 */}
+      <img src={logo} alt="Logo" className="h-14 w-auto" />
 
       <div>
         {user ? (
@@ -60,7 +65,7 @@ function Header() {
             <Popover>
               <PopoverTrigger>
                 <img
-                  src={user?.picture}
+                  src={user?.photoURL}
                   alt="User Profile"
                   className="h-[40px] w-[40px] rounded-full border border-gray-300 bg-gray-100"
                   onError={e => { e.target.onerror = null; e.target.src = '/placeholder.jpg'; }}
@@ -69,11 +74,7 @@ function Header() {
               <PopoverContent>
                 <h2
                   className="cursor-pointer"
-                  onClick={() => {
-                    googleLogout()
-                    localStorage.clear()
-                    window.location.reload()
-                  }}
+                  onClick={handleLogout}
                 >
                   Logout
                 </h2>
@@ -89,8 +90,7 @@ function Header() {
         <DialogContent>
           <DialogHeader>
             <DialogDescription className="flex flex-col items-center text-center space-y-4">
-              {/* ✅ Bigger logo inside modal */}
-              <img src={logo} alt="logo" className="w-[140px]" /> {/* larger width */}
+              <img src={logo} alt="logo" className="w-[140px]" />
               <h2 className="font-bold text-lg">Sign In to explore your AI trip planner</h2>
               <p>Sign in securely with Google authentication.</p>
               <Button
@@ -109,4 +109,3 @@ function Header() {
 }
 
 export default Header
-
